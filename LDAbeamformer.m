@@ -1,4 +1,4 @@
-function [w,s,C,nor] = LDAbeamformer(P,dat,gamma)
+function [w,s,C,nor] = LDAbeamformer(P,dat,gamma,verbose)
 %Linear-discriminant analysis (LDA) beamformer. Given a spatial pattern P 
 %and sensor data DAT, a spatial filter w is constructed. 
 %If more than one pattern is provided, the additional patterns are used as
@@ -6,7 +6,7 @@ function [w,s,C,nor] = LDAbeamformer(P,dat,gamma)
 %
 %Usage:
 % lda_beamformer(P,DAT)
-% lda_beamformer(P,DAT,gamma)
+% lda_beamformer(P,DAT,gamma,verbose)
 %
 %Inputs:
 % P: [vector or matrix] column vector specifying the spatial pattern  
@@ -24,7 +24,7 @@ function [w,s,C,nor] = LDAbeamformer(P,dat,gamma)
 %          and estimate the source time series.
 %          Alternatively, the covariance matrix can be provided directly.
 %          DAT can take three different forms:
-%          (1) 2D matrix (channels x time samples) representing continusous
+%          (1) 2D matrix (channels x time samples) representing continuous
 %          (unepoched) data. Empirical covariance is calculated on the
 %          whole data.
 %          (2) 3D matrix (channels x time samples x epochs) representing
@@ -42,6 +42,7 @@ function [w,s,C,nor] = LDAbeamformer(P,dat,gamma)
 %                empirical covariance matrix (gamma=0, no regularization) and a
 %                diagonal matrix of equal variance (gamma=1, maximum regularization). 
 %                Default 0.0001.
+% verbose [bool] give output on the console (default 1)
 %
 %Outputs:
 % w     [vector] LDA beamformer / spatial filter
@@ -130,6 +131,9 @@ end
 if ~exist('gamma','var') || isempty(gamma)
   gamma = 0.0001;
 end
+if ~exist('verbose','var') || isempty(verbose)
+  verbose = 1;
+end
 
 % Check if we have a FieldTrip struct
 isFT = isstruct(dat);
@@ -144,14 +148,14 @@ else
     [nChan, ~, nEpochs] = size(X);
 end
 
-fprintf('Processing data with %d channels and %d epochs\n',nChan,nEpochs);
+if verbose, fprintf('Processing data with %d channels and %d epochs\n',nChan,nEpochs); end
 
 %% Calculate covariance matrix
 if size(P,1) ~= nChan
     error('First dimension of data [%d] does not match the number of channels inferred from P [%d]',nChan, size(P,1))
 end
 if iscell(X)
-    fprintf('Data provided as cell array. Calculating the covariance across the cells\n')
+    if verbose, fprintf('Data provided as cell array. Calculating the covariance across the cells\n'), end
     C = zeros(nChan);
     for ii=1:nEpochs
         C = C + cov(squeeze(X{ii}'));
@@ -159,14 +163,14 @@ if iscell(X)
     C = C / nEpochs;
 elseif ndims(X) == 2
     if all(size(X) == size(X'))
-        fprintf('Covariance matrix has been provided directly\n')
+        if verbose, fprintf('Covariance matrix has been provided directly\n'), end
         C= X;
     else
-        fprintf('Continuous data has been provided and is used for calculating the empirical covariance\n')
+        if verbose, fprintf('Continuous data has been provided and is used for calculating the empirical covariance\n'), end
         C = cov(X');
     end
 elseif ndims(X) == 3
-    fprintf('Epoched data provided. Calculating the covariance across the epochs\n')
+    if verbose, fprintf('Epoched data provided. Calculating the covariance across the epochs\n'), end
     C = zeros(nChan);
     for ii=1:nEpochs
         C = C + cov(squeeze(X(:,:,ii)'));
